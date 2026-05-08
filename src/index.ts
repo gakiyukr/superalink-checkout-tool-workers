@@ -50,7 +50,8 @@ export default {
       try {
         const params: CheckoutParams = Object.fromEntries(url.searchParams.entries());
         const result = await resultFromParams(env.CHECKOUT_KV, params);
-        return Response.redirect(result.pay_url!, 302);
+        const redirectUrl = new URL(result.pay_url!, request.url).toString();
+        return Response.redirect(redirectUrl, 302);
       } catch (e: unknown) {
         return jsonResponse({ ok: false, error: String(e) }, 500);
       }
