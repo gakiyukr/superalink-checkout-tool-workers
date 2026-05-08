@@ -119,34 +119,6 @@ export async function getIntents(session: SuperalinkSession, orderId: string): P
   return await resp.json() as PaymentIntent[];
 }
 
-export async function makePaypalIntent(
-  session: SuperalinkSession, orderId: string,
-): Promise<PaymentIntent & { meta?: { orderId?: string } }> {
-  const resp = await fetch(
-    `${STORE}/v2/checkout/${orderId}/payment-intents?paymentMethod=paypal`,
-    { method: 'POST', headers: { ...pageHeaders(), 'Cookie': sessionCookies(session) } },
-  );
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`make paypal intent failed: ${resp.status} ${text}`);
-  }
-  return await resp.json() as PaymentIntent & { meta?: { orderId?: string } };
-}
-
-export async function captureIntent(
-  session: SuperalinkSession, orderId: string, intentId: string,
-): Promise<{ ok: boolean; intent?: unknown; error?: ApiError }> {
-  const resp = await fetch(
-    `${STORE}/v2/checkout/${orderId}/payment-intents/${intentId}/capture`,
-    { method: 'POST', headers: { ...pageHeaders(), 'Cookie': sessionCookies(session) } },
-  );
-  if (!resp.ok) {
-    return { ok: false, error: apiError(resp.status, await resp.text()) };
-  }
-  const data = await resp.json() as Record<string, unknown>;
-  return { ok: true, intent: data.intent ?? data };
-}
-
 export async function authorizeCapture(
   session: SuperalinkSession, orderId: string, intentId: string,
 ): Promise<{ ok: boolean; intent?: unknown; error?: ApiError }> {

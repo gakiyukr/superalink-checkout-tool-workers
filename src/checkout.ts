@@ -3,10 +3,10 @@ import {
   DEFAULT_SKU, DEFAULT_COUPON, WWW, countryCodeFromUrl, skuCountryCode,
   durationDays, productDataAmount, countrySlug, localReferenceCurrency,
 } from './constants';
-import type { CheckoutParams, CreateCheckoutResult, TokenData, SuperalinkOrder, PaymentIntent } from './types';
+import type { CheckoutParams, CreateCheckoutResult, TokenData, SuperalinkOrder } from './types';
 import { storeToken, loadToken, rememberEmailIneligible, cachedEmailIneligible, normalizeEmail } from './tokens';
-import { createCheckout, updateRecipientEmail, getOrder, getIntents, makePaypalIntent, captureIntent, authorizeCapture, pageHeaders } from './api';
-import { chooseProduct, officialCheckoutUrlFromProduct, activePriceFromIntent, capDiscountedPrices } from './catalog';
+import { createCheckout, updateRecipientEmail, getIntents, authorizeCapture } from './api';
+import { chooseProduct, officialCheckoutUrlFromProduct, activePriceFromIntent } from './catalog';
 
 export async function resultFromParams(kv: KVNamespace, params: CheckoutParams): Promise<CreateCheckoutResult> {
   const pageUrl = params.url || DEFAULT_URL;
@@ -38,25 +38,25 @@ export async function resultFromParams(kv: KVNamespace, params: CheckoutParams):
     effectiveSku,
   );
 
-  const { order, sessionId, headers } = await createCheckout({
+  const { order, sessionId } = await createCheckout({
     sku: product.sku, qty: parseInt(params.qty || '1'), currency, coupon, pageUrl, locale,
   });
 
   const orderId = order.uniqueId;
   let email = (params.email || params.recipient_email || '').trim();
-  let updatedOrder: SuperalinkOrder | null = null;
 
   if (email) {
     const result = await updateRecipientEmail(
       { sessionId, locale }, orderId, email,
       ['1', 'true', 'yes', 'y'].includes((params.subscribe ?? '').toLowerCase()),
     );
-    if (result.order) updatedOrder = result.order;
+    if (result.ineligible) {
+      throw new Error(result.reason ?? '该优惠券仅在首次购买时可用。');
+    }
   }
 
   const intents = await getIntents({ sessionId, locale }, orderId);
   const stripe = intents.find(i => i.methodIdentifier === 'stripe') ?? null;
-  const paypalIntent = intents.find(i => i.methodIdentifier === 'paypal') ?? null;
   const [amount, unit] = productDataAmount(product);
   const checkoutPrice = activePriceFromIntent(stripe, currency) ?? product.price?.[currency] ?? product.price?.['USD'] ?? null;
 
@@ -73,8 +73,6 @@ export async function resultFromParams(kv: KVNamespace, params: CheckoutParams):
     currency,
     client_secret: clientSecret,
     stripe_intent_id: stripeIntentId,
-    paypal_intent_id: paypalIntent?.id ?? null,
-    paypal_order_id: paypalIntent?.meta?.orderId ?? null,
     cookie_name: 'splnk_checkout_session',
     cookie_value: sessionId,
     product: {
@@ -155,52 +153,4 @@ export async function handlePrepay(
     amount: data.amount,
     coupon: data.coupon,
   };
-}
-
-export async function handlePaypalCreate(
-  kv: KVNamespace, body: { t: string; email: string },
-): Promise<{ ok: boolean; paypal_order_id?: string; pre_capture?: boolean; error?: string }> {
-  const data = await loadToken(kv, body.t);
-  const email = normalizeEmail(body.email);
-  const session = { sessionId: data.cookie_value, locale: DEFAULT_LOCALE };
-
-  const cached = await cachedEmailIneligible(kv, email);
-  if (cached) throw new Error(cached);
-
-  const emailResult = await updateRecipientEmail(session, data.order_id, email, false);
-  if (emailResult.ineligible) {
-    await rememberEmailIneligible(kv, email, emailResult.reason);
-    throw new Error(emailResult.reason ?? '该优惠券仅在首次购买时可用。');
-  }
-
-  const pi = await makePaypalIntent(session, data.order_id);
-  const cap = await authorizeCapture(session, data.order_id, pi.id);
-  data.paypal_intent_id = pi.id;
-  data.paypal_order_id = pi.meta?.orderId;
-
-  return {
-    ok: true,
-    paypal_order_id: data.paypal_order_id ?? undefined,
-    pre_capture: cap.ok,
-  };
-}
-
-export async function handlePaypalCapture(
-  kv: KVNamespace, body: { t: string; paypal_order_id: string },
-): Promise<{ ok: boolean; capture_error?: string | null; error?: string }> {
-  const data = await loadToken(kv, body.t);
-  const session = { sessionId: data.cookie_value, locale: DEFAULT_LOCALE };
-
-  let intentId = data.paypal_intent_id;
-  if (!intentId) {
-    const intents = await getIntents(session, data.order_id);
-    const match = intents.find(i =>
-      i.methodIdentifier === 'paypal' && (i as PaymentIntent & { meta?: { orderId?: string } }).meta?.orderId === body.paypal_order_id,
-    );
-    intentId = match?.id ?? null;
-  }
-  if (!intentId) throw new Error('paypal intent not found');
-
-  const cap = await captureIntent(session, data.order_id, intentId);
-  return { ok: cap.ok, capture_error: cap.ok ? null : JSON.stringify(cap.error) };
 }

@@ -1,7 +1,6 @@
 export interface Env {
   CHECKOUT_KV: KVNamespace;
   STRIPE_PK: string;
-  PAYPAL_CLIENT_ID: string;
   LOCAL_API_BASE: string;
 }
 
@@ -14,8 +13,6 @@ export interface TokenData {
   currency: string;
   client_secret: string | null;
   stripe_intent_id: string | null;
-  paypal_intent_id: string | null;
-  paypal_order_id: string | null;
   cookie_name: string;
   cookie_value: string;
   product: ProductSummary;

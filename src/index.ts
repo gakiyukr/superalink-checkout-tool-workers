@@ -1,7 +1,7 @@
 import { INDEX_HTML } from './html';
 import { flowHtml, payHtml } from './html';
-import { loadToken, normalizeEmail } from './tokens';
-import { resultFromParams, handleCheckEmail, handlePrepay, handlePaypalCreate, handlePaypalCapture } from './checkout';
+import { loadToken } from './tokens';
+import { resultFromParams, handleCheckEmail, handlePrepay } from './checkout';
 import { catalogForCountry } from './catalog';
 import { proxySuperalinkAsset, handleStripeCallback } from './proxy';
 import { DEFAULT_COUNTRY_CODE, localReferenceCurrency } from './constants';
@@ -126,28 +126,6 @@ export default {
       }
     }
 
-    // --- API: paypal/create ---
-    if (path === '/api/paypal/create' && request.method === 'POST') {
-      try {
-        const body = await request.json() as { t: string; email: string };
-        const result = await handlePaypalCreate(env.CHECKOUT_KV, body);
-        return jsonResponse(result);
-      } catch (e: unknown) {
-        return jsonResponse({ ok: false, error: String(e) }, 500);
-      }
-    }
-
-    // --- API: paypal/capture ---
-    if (path === '/api/paypal/capture' && request.method === 'POST') {
-      try {
-        const body = await request.json() as { t: string; paypal_order_id: string };
-        const result = await handlePaypalCapture(env.CHECKOUT_KV, body);
-        return jsonResponse(result);
-      } catch (e: unknown) {
-        return jsonResponse({ ok: false, error: String(e) }, 500);
-      }
-    }
-
     // --- Stripe callback ---
     if (path === '/api/stripe-callback') {
       return handleStripeCallback(url);
@@ -159,14 +137,11 @@ export default {
         const token = url.searchParams.get('t') ?? '';
         const data = await loadToken(env.CHECKOUT_KV, token);
         const publicData = { ...data, token };
-        // Remove sensitive fields from client-facing data
         delete (publicData as Record<string, unknown>).order_id;
         delete (publicData as Record<string, unknown>).checkout_url;
         delete (publicData as Record<string, unknown>).stripe_intent_id;
-        delete (publicData as Record<string, unknown>).paypal_intent_id;
-        delete (publicData as Record<string, unknown>).paypal_order_id;
         delete (publicData as Record<string, unknown>).cookie_value;
-        const html = payHtml(publicData as typeof data & { token: string }, env.STRIPE_PK, env.PAYPAL_CLIENT_ID);
+        const html = payHtml(publicData as typeof data & { token: string }, env.STRIPE_PK);
         return htmlResponse(html);
       } catch (e: unknown) {
         return jsonResponse({ ok: false, error: String(e) }, 500);
@@ -226,7 +201,6 @@ location.replace(${JSON.stringify(target)});
 
     // --- Apple Pay domain verification ---
     if (path === '/.well-known/apple-developer-merchantid-domain-association') {
-      // In CF Workers, serve this from a static asset or KV. For now return 404.
       return new Response('Not configured', { status: 404 });
     }
 

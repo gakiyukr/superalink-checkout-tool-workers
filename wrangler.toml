@@ -11,4 +11,3 @@ id = "9f9599aab1b04e32a5d609bd7cd6a56d"
 
 # Secrets (set via `wrangler secret put`):
 # - STRIPE_PK
-# - PAYPAL_CLIENT_ID

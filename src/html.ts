@@ -19,11 +19,11 @@ export function flowHtml(result: Record<string, unknown>): string {
   <p><b>产品：</b>${escapeHtml(sku)} / ${escapeHtml(String(priceDisplay ?? ''))}</p>
 </div>
 <p><a class=btn href="${escapeHtml(payUrl)}">进入 Superalink 原付款页</a></p>
-<p class=muted>支付页面使用 Superalink 官方 checkout，因此会保留原来的银行卡、PayPal 等所有支付方式。本工具只负责预创建订单、预填邮箱和优惠券。</p>
+<p class=muted>支付页面使用 Superalink 官方 checkout，保留银行卡、Apple Pay、Google Pay 等支付方式。本工具只负责预创建订单、预填邮箱和优惠券。</p>
 <script>setTimeout(()=>{ location.href = ${JSON.stringify(payUrl)}; }, 800);</script>`;
 }
 
-export function payHtml(data: TokenData & { token: string }, stripePk: string, paypalClientId: string): string {
+export function payHtml(data: TokenData & { token: string }, stripePk: string): string {
   const safeAmount = escapeHtml(data.amount ?? '฿25.00');
   const safeCoupon = escapeHtml(data.coupon ?? 'HAN000000');
   const product = data.product ?? { country_code: '', sku: '', duration_days: null, option: null, fup_or_data: { amount: null, unit: null } };
@@ -37,11 +37,11 @@ export function payHtml(data: TokenData & { token: string }, stripePk: string, p
 
   return `<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>Superalink 自建付款</title><script src="https://js.stripe.com/v3/"></script>
-<style>body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f6f7f9;margin:0;color:#111}.wrap{max-width:560px;margin:18px auto;padding:16px}.card{background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.08);padding:20px;margin-bottom:14px}h2{margin:0 0 8px}label{display:block;font-weight:650;margin:14px 0 6px}input{width:100%;box-sizing:border-box;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px}input.invalid{border-color:#e53935;background:#fffafa}button{width:100%;padding:15px;border:0;border-radius:10px;background:#0a7cff;color:white;font-size:17px;margin-top:16px}button:disabled{opacity:.55}.muted{color:#666;font-size:14px;line-height:1.55}.tip{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 12px;margin:10px 0 12px;color:#7c2d12;font-size:13px;line-height:1.55}.tip b{color:#9a3412}.row{display:flex;justify-content:space-between;margin:8px 0}.ok{color:#0a8a3a}.err{color:#c62828;white-space:pre-wrap}#payment-element{margin-top:12px}#paypal-status{margin:10px 0 8px}.paypal-fallback{background:#ffc439;color:#111;font-weight:700}</style></head>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f6f7f9;margin:0;color:#111}.wrap{max-width:560px;margin:18px auto;padding:16px}.card{background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.08);padding:20px;margin-bottom:14px}h2{margin:0 0 8px}label{display:block;font-weight:650;margin:14px 0 6px}input{width:100%;box-sizing:border-box;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px}input.invalid{border-color:#e53935;background:#fffafa}button{width:100%;padding:15px;border:0;border-radius:10px;background:#0a7cff;color:white;font-size:17px;margin-top:16px}button:disabled{opacity:.55}.muted{color:#666;font-size:14px;line-height:1.55}.tip{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 12px;margin:10px 0 12px;color:#7c2d12;font-size:13px;line-height:1.55}.tip b{color:#9a3412}.row{display:flex;justify-content:space-between;margin:8px 0}.ok{color:#0a8a3a}.err{color:#c62828;white-space:pre-wrap}#payment-element{margin-top:12px}</style></head>
 <body><div class=wrap>
 <div class=card><h2>${title}</h2><p class=muted>${fupText} · SKU ${sku}</p>
-<div class=row><span>优惠券</span><b>${safeCoupon}</b></div><div class=row><span>应付</span><b>${safeAmount}</b></div><div id=status class="muted">正在加载银行卡支付组件...</div></div>
-<div class=card><form id=pay-form><label>发送 eSIM 至</label><div class="tip"><b>邮箱提示：</b>请保证使用未购买过的邮箱，否则可能会移除优惠券，被反薅。未使用的 eSIM 通常可无理由退款，具体以 Superalink 官方规则为准。没有新邮箱？可使用 <a href="https://onlypast.com/" target="_blank" rel="noopener noreferrer">OnlyPast 自建邮箱</a>。</div><input id=email type=email autocomplete=email placeholder="you@example.com" required><div id="email-status" class="muted">输入邮箱后会先按 Superalink 官方接口校验优惠券是否仍可用。</div><div id="wallet-status" class="muted">正在检测 Apple Pay / Google Pay / Link...</div><div id="express-element"></div><div id="paypal-status" class="muted">正在加载 PayPal...</div><div id="paypal-buttons"></div><button id="paypal-fallback" type="button" class="paypal-fallback">PayPal 支付 ${safeAmount}</button><div id="payment-element"></div><button id=submit disabled>银行卡 / 钱包支付 ${safeAmount}</button><div id=message class=err></div></form><p class=muted>所有支付方式均调用 Superalink 原生接口，本页只简化付款步骤。Apple/Google Pay 是否显示取决于用户设备、浏览器和钱包环境。</p><p class=muted>如果不信任本页，请跳转 Superalink 官方结算页：<a id="official-link" href="${officialUrl}" target="_blank" rel="noopener noreferrer">${officialUrl}</a></p></div>
+<div class=row><span>优惠券</span><b>${safeCoupon}</b></div><div class=row><span>应付</span><b>${safeAmount}</b></div><div id=status class="muted">正在加载支付组件...</div></div>
+<div class=card><form id=pay-form><label>发送 eSIM 至</label><div class="tip"><b>邮箱提示：</b>请保证使用未购买过的邮箱，否则可能会移除优惠券，被反薅。未使用的 eSIM 通常可无理由退款，具体以 Superalink 官方规则为准。没有新邮箱？可使用 <a href="https://onlypast.com/" target="_blank" rel="noopener noreferrer">OnlyPast 自建邮箱</a>。</div><input id=email type=email autocomplete=email placeholder="you@example.com" required><div id="email-status" class="muted">输入邮箱后会先按 Superalink 官方接口校验优惠券是否仍可用。</div><div id="wallet-status" class="muted">正在检测 Apple Pay / Google Pay / Link...</div><div id="express-element"></div><div id="payment-element"></div><button id=submit disabled>支付 ${safeAmount}</button><div id=message class=err></div></form><p class=muted>所有支付方式均调用 Superalink 原生接口，本页只简化付款步骤。Apple/Google Pay 是否显示取决于用户设备、浏览器和钱包环境。</p><p class=muted>如果不信任本页，请跳转 Superalink 官方结算页：<a id="official-link" href="${officialUrl}" target="_blank" rel="noopener noreferrer">${officialUrl}</a></p></div>
 </div><script>
 const DATA=${dataJson};
 const stripe=Stripe(${JSON.stringify(stripePk)});
@@ -108,7 +108,7 @@ async function init(){try{
   }catch(e){document.getElementById('wallet-status').className='err';document.getElementById('wallet-status').textContent='钱包组件不可用：'+(e.message||e);console.warn('express checkout unavailable',e)}
   const paymentElement=elements.create('payment',{business:{name:'Superalink'},wallets:{applePay:'auto',googlePay:'auto'},layout:{type:'accordion',defaultCollapsed:false,radios:true}});
   paymentElement.mount('#payment-element');
-  document.getElementById('submit').disabled=false;document.getElementById('status').innerHTML='<span class=ok>付款组件已加载，金额 '+(DATA.amount||'')+'</span>';
+  document.getElementById('submit').disabled=false;document.getElementById('status').innerHTML='<span class=ok>支付组件已加载，金额 '+(DATA.amount||'')+'</span>';
 }catch(e){document.getElementById('status').className='err';document.getElementById('status').textContent='加载失败：'+e.message;}}
 async function runStripeConfirm(){
   const email=document.getElementById('email').value.trim();
@@ -120,47 +120,12 @@ async function runStripeConfirm(){
   const res=await stripe.confirmPayment({elements,confirmParams:{return_url:ret},redirect:'always'});
   if(res.error) throw new Error(res.error.message||res.error.code||'Stripe error');
 }
-async function loadPaypalSdk(){
-  return new Promise((resolve,reject)=>{
-    if(window.paypal) return resolve(window.paypal);
-    const cur=(DATA.currency==='KRW')?'USD':(DATA.currency||'USD');
-    const s=document.createElement('script');
-    s.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(${JSON.stringify(paypalClientId)})+'&currency='+encodeURIComponent(cur)+'&intent=capture&components=buttons';
-    s.onload=()=>window.paypal?resolve(window.paypal):reject(new Error('PayPal SDK loaded but window.paypal missing'));
-    s.onerror=()=>reject(new Error('PayPal SDK 加载失败'));
-    document.head.appendChild(s);
-    setTimeout(()=>{if(!window.paypal) reject(new Error('PayPal SDK 加载超时'))},15000);
-  });
-}
-async function startPaypalFallback(){
-  const btn=document.getElementById('paypal-fallback');
-  const email=document.getElementById('email').value.trim();
-  if(!email){document.getElementById('message').textContent='请先填写接收 eSIM 的邮箱';return;}
-  if(!await validateEmailNow()){document.getElementById('message').textContent='请更换未购买过的邮箱后再付款';return;}
-  btn.disabled=true;document.getElementById('message').textContent='正在创建 PayPal 订单...';
-  try{
-    const r=await fetch('/api/paypal/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:DATA.token,email})}).then(r=>r.json());
-    if(!r.ok) throw new Error(r.error||'paypal create failed');
-    document.getElementById('message').textContent='PayPal 订单已创建；如果按钮没有弹出，请检查当前网络是否能访问 paypal.com。';
-  }catch(e){document.getElementById('message').textContent='PayPal 创建失败：'+(e.message||e)}finally{btn.disabled=false;}
-}
-async function setupPaypal(){const st=document.getElementById('paypal-status');try{
-  await loadPaypalSdk();
-  st.innerHTML='<span class=ok>PayPal 已加载，可直接点击 PayPal 按钮</span>';
-  paypal.Buttons({
-    style:{layout:'vertical',color:'gold',shape:'rect',label:'paypal'},
-    createOrder:async()=>{const email=document.getElementById('email').value.trim(); if(!email) throw new Error('请先填写接收 eSIM 的邮箱'); if(!await validateEmailNow()) throw new Error('请更换未购买过的邮箱后再付款'); const r=await fetch('/api/paypal/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:DATA.token,email})}).then(r=>r.json()); if(!r.ok) throw new Error(r.error||'paypal create failed'); return r.paypal_order_id;},
-    onApprove:async(data)=>{const r=await fetch('/api/paypal/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:DATA.token,paypal_order_id:data.orderID})}).then(r=>r.json()); if(r.ok) location.href='/api/stripe-callback?paymentMethod=paypal&session='+encodeURIComponent(DATA.cookie_value||''); else document.getElementById('message').textContent=r.error||'PayPal capture failed';},
-    onError:(err)=>{document.getElementById('message').textContent='PayPal 错误：'+(err.message||err)}
-  }).render('#paypal-buttons');
-}catch(e){st.className='err';st.textContent='PayPal 按钮加载失败：'+(e.message||e)+'。下方黄色 PayPal 按钮会尝试先创建官方 PayPal 订单；若仍无弹窗，多半是当前网络拦截 paypal.com。';console.warn('paypal unavailable',e)}}
-document.getElementById('paypal-fallback').addEventListener('click',startPaypalFallback);
 document.getElementById('email').addEventListener('input',scheduleEmailCheck);
 document.getElementById('email').addEventListener('blur',()=>validateEmailNow().catch(e=>setEmailState(false,friendlyEmailError(e.message||e))));
 document.getElementById('pay-form').addEventListener('submit',async(e)=>{e.preventDefault();const btn=document.getElementById('submit');btn.disabled=true;document.getElementById('message').textContent='正在补齐订单信息并进入付款...';try{
   await runStripeConfirm();
 }catch(err){document.getElementById('message').textContent=err.message;btn.disabled=false;}});
-init(); setupPaypal();
+init();
 </script></body></html>`;
 }
 
