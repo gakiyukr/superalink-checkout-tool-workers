@@ -41,7 +41,7 @@ export function payHtml(data: TokenData & { token: string }, stripePk: string): 
 <body><div class=wrap>
 <div class=card><h2>${title}</h2><p class=muted>${fupText} · SKU ${sku}</p>
 <div class=row><span>优惠券</span><b>${safeCoupon}</b></div><div class=row><span>应付</span><b>${safeAmount}</b></div><div id=status class="muted">正在加载支付组件...</div></div>
-<div class=card><form id=pay-form><label>发送 eSIM 至</label><div class="tip"><b>邮箱提示：</b>请保证使用未购买过的邮箱，否则可能会移除优惠券，被反薅。未使用的 eSIM 通常可无理由退款，具体以 Superalink 官方规则为准。没有新邮箱？可使用 <a href="https://onlypast.com/" target="_blank" rel="noopener noreferrer">OnlyPast 自建邮箱</a>。</div><input id=email type=email autocomplete=email placeholder="you@example.com" required><div id="email-status" class="muted">输入邮箱后会先按 Superalink 官方接口校验优惠券是否仍可用。</div><div id="wallet-status" class="muted">正在检测 Apple Pay / Google Pay / Link...</div><div id="express-element"></div><div id="payment-element"></div><button id=submit disabled>支付 ${safeAmount}</button><div id=message class=err></div></form><p class=muted>所有支付方式均调用 Superalink 原生接口，本页只简化付款步骤。Apple/Google Pay 是否显示取决于用户设备、浏览器和钱包环境。</p><p class=muted>如果不信任本页，请跳转 Superalink 官方结算页：<a id="official-link" href="${officialUrl}" target="_blank" rel="noopener noreferrer">${officialUrl}</a></p></div>
+<div class=card><form id=pay-form><label>发送 eSIM 至</label><div class="tip"><b>邮箱提示：</b>请保证使用未购买过的邮箱，否则可能会移除优惠券，被反薅。未使用的 eSIM 通常可无理由退款，具体以 Superalink 官方规则为准。没有新邮箱？可使用 <a href="https://onlypast.com/" target="_blank" rel="noopener noreferrer">OnlyPast 自建邮箱</a>。</div><input id=email type=email autocomplete=email placeholder="you@example.com" required><div id="email-status" class="muted">输入邮箱后会先按 Superalink 官方接口校验优惠券是否仍可用。</div><div id="payment-element"></div><button id=submit disabled>支付 ${safeAmount}</button><div id=message class=err></div></form><p class=muted>所有支付方式均调用 Superalink 原生接口，本页只简化付款步骤。</p><p class=muted>如果不信任本页，请跳转 Superalink 官方结算页：<a id="official-link" href="${officialUrl}" target="_blank" rel="noopener noreferrer">${officialUrl}</a></p></div>
 </div><script>
 const DATA=${dataJson};
 const stripe=Stripe(${JSON.stringify(stripePk)});
@@ -91,22 +91,7 @@ function scheduleEmailCheck(){
 async function init(){try{
   if(!DATA.client_secret) throw new Error('缺少 Stripe client_secret');
   elements=stripe.elements({clientSecret:DATA.client_secret,appearance:{theme:'stripe',variables:{colorPrimary:'#F47325'}}});
-  try{
-    const express=elements.create('expressCheckout',{buttonHeight:48,buttonTheme:{applePay:'black',googlePay:'black'},buttonType:{applePay:'buy',googlePay:'buy'},paymentMethods:{applePay:'always',googlePay:'always',link:'auto'}});
-    express.mount('#express-element');
-    express.on('ready',(ev)=>{
-      const pm=(ev&&ev.availablePaymentMethods)||{};
-      const names=[];
-      if(pm.applePay) names.push('Apple Pay');
-      if(pm.googlePay) names.push('Google Pay');
-      if(pm.link) names.push('Link');
-      const ws=document.getElementById('wallet-status');
-      if(names.length) ws.innerHTML='<span class=ok>可用钱包：'+names.join(' / ')+'</span>';
-      else ws.textContent='当前浏览器未返回可用 Apple Pay / Google Pay / Link。Apple Pay 还要求本域名通过 Stripe/Apple Pay 商户域名验证。';
-    });
-    express.on('confirm', async()=>{await runStripeConfirm();});
-  }catch(e){document.getElementById('wallet-status').className='err';document.getElementById('wallet-status').textContent='钱包组件不可用：'+(e.message||e);console.warn('express checkout unavailable',e)}
-  const paymentElement=elements.create('payment',{business:{name:'Superalink'},wallets:{applePay:'auto',googlePay:'auto'},layout:{type:'accordion',defaultCollapsed:false,radios:true}});
+  const paymentElement=elements.create('payment',{layout:{type:'accordion',defaultCollapsed:false,radios:true}});
   paymentElement.mount('#payment-element');
   paymentElement.on('ready',()=>{
     document.getElementById('submit').disabled=false;
