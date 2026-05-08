@@ -97,7 +97,10 @@ async function init(){try{
     document.getElementById('submit').disabled=false;
     document.getElementById('status').innerHTML='<span class=ok>支付组件已加载，金额 '+(DATA.amount||'')+'</span>';
   });
-}catch(e){document.getElementById('status').className='err';document.getElementById('status').textContent='加载失败：'+e.message;}}
+}catch(e){
+  document.getElementById('status').innerHTML='<span class=err>支付组件加载失败：'+e.message+'</span><p class=muted>可能是网络问题或 Stripe 配置异常。请通过下方链接跳转 Superalink 官方结算页完成付款：<br><a href="${officialUrl}" target="_blank" rel="noopener noreferrer">${officialUrl}</a></p>';
+  document.getElementById('payment-element').innerHTML='<a href="${officialUrl}" target="_blank" rel="noopener" style="display:inline-block;margin-top:12px;background:#111827;color:white;padding:14px 22px;border-radius:10px;text-decoration:none;font-size:17px">前往 Superalink 官方结算页</a>';
+}}
 async function runStripeConfirm(){
   const email=document.getElementById('email').value.trim();
   if(!email) throw new Error('请先填写接收 eSIM 的邮箱');

@@ -1,11 +1,11 @@
 import {
   DEFAULT_URL, DEFAULT_LOCALE, DEFAULT_CURRENCY, DEFAULT_DURATION, DEFAULT_OPTION,
   DEFAULT_SKU, DEFAULT_COUPON, WWW, countryCodeFromUrl, skuCountryCode,
-  durationDays, productDataAmount, countrySlug, localReferenceCurrency,
+  durationDays, productDataAmount,
 } from './constants';
-import type { CheckoutParams, CreateCheckoutResult, TokenData, SuperalinkOrder } from './types';
+import type { CheckoutParams, CreateCheckoutResult, TokenData } from './types';
 import { storeToken, loadToken, rememberEmailIneligible, cachedEmailIneligible, normalizeEmail } from './tokens';
-import { createCheckout, updateRecipientEmail, getIntents, authorizeCapture } from './api';
+import { createCheckout, updateRecipientEmail, getIntents } from './api';
 import { chooseProduct, officialCheckoutUrlFromProduct, activePriceFromIntent } from './catalog';
 
 export async function resultFromParams(kv: KVNamespace, params: CheckoutParams): Promise<CreateCheckoutResult> {
@@ -128,7 +128,7 @@ export async function handleCheckEmail(
 
 export async function handlePrepay(
   kv: KVNamespace, body: { t: string; email: string; method: string },
-): Promise<{ ok: boolean; pre_capture?: boolean; pre_capture_error?: string | null; callback?: string; amount?: string; coupon?: string; error?: string }> {
+): Promise<{ ok: boolean; callback?: string; amount?: string; coupon?: string; error?: string }> {
   const data = await loadToken(kv, body.t);
   const email = normalizeEmail(body.email);
   const session = { sessionId: data.cookie_value, locale: DEFAULT_LOCALE };
@@ -142,13 +142,10 @@ export async function handlePrepay(
     throw new Error(emailResult.reason ?? '该优惠券仅在首次购买时可用。');
   }
 
-  const cap = await authorizeCapture(session, data.order_id, data.stripe_intent_id ?? '');
   const cb = `?paymentMethod=stripe&session=${encodeURIComponent(data.cookie_value)}`;
 
   return {
     ok: true,
-    pre_capture: cap.ok,
-    pre_capture_error: cap.ok ? null : JSON.stringify(cap.error),
     callback: cb,
     amount: data.amount,
     coupon: data.coupon,

@@ -1,5 +1,5 @@
 import { STORE, WWW, DEFAULT_URL, DEFAULT_LOCALE } from './constants';
-import type { SuperalinkOrder, PaymentIntent, SuperalinkSession, ApiError } from './types';
+import type { SuperalinkOrder, PaymentIntent, SuperalinkSession } from './types';
 
 function sessionCookies(session: SuperalinkSession): string {
   return `splnk_checkout_session=${session.sessionId}; NEXT_LOCALE=${session.locale}`;
@@ -25,10 +25,6 @@ function pageHeaders(pageUrl?: string, locale?: string): Record<string, string> 
     'X-Page-Path': path,
     'X-Page-Origin': origin,
   };
-}
-
-function apiError(status: number, body: unknown): ApiError {
-  return { status_code: status, body };
 }
 
 export async function fetchProducts(countryCode: string): Promise<unknown[]> {
@@ -102,35 +98,12 @@ export async function updateRecipientEmail(
   return { order, ineligible: false };
 }
 
-export async function getOrder(session: SuperalinkSession, orderId: string): Promise<SuperalinkOrder> {
-  const resp = await fetch(`${STORE}/v2/checkout/${orderId}`, {
-    headers: { ...pageHeaders(), 'Cookie': sessionCookies(session) },
-  });
-  if (!resp.ok) throw new Error(`get order failed: ${resp.status}`);
-  const data = await resp.json() as Record<string, unknown>;
-  return (data.order ?? data) as SuperalinkOrder;
-}
-
 export async function getIntents(session: SuperalinkSession, orderId: string): Promise<PaymentIntent[]> {
   const resp = await fetch(`${STORE}/v2/checkout/${orderId}/payment-intents`, {
     headers: { ...pageHeaders(), 'Cookie': sessionCookies(session) },
   });
   if (!resp.ok) return [];
   return await resp.json() as PaymentIntent[];
-}
-
-export async function authorizeCapture(
-  session: SuperalinkSession, orderId: string, intentId: string,
-): Promise<{ ok: boolean; intent?: unknown; error?: ApiError }> {
-  const resp = await fetch(
-    `${STORE}/v2/checkout/${orderId}/payment-intents/${intentId}/authorize-capture`,
-    { method: 'POST', headers: { ...pageHeaders(), 'Cookie': sessionCookies(session) } },
-  );
-  if (!resp.ok) {
-    return { ok: false, error: apiError(resp.status, await resp.text()) };
-  }
-  const data = await resp.json() as Record<string, unknown>;
-  return { ok: true, intent: data.intent ?? data };
 }
 
 export { pageHeaders, sessionCookies };
