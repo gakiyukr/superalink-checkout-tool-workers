@@ -1,0 +1,14 @@
+name = "superalink-checkout-worker"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[vars]
+LOCAL_API_BASE = "https://supera.onlypast.com/storefront-api"
+
+[[kv_namespaces]]
+binding = "CHECKOUT_KV"
+id = "YOUR_KV_NAMESPACE_ID"
+
+# Secrets (set via `wrangler secret put`):
+# - STRIPE_PK
+# - PAYPAL_CLIENT_ID
