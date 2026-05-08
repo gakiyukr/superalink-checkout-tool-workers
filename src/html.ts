@@ -108,7 +108,10 @@ async function init(){try{
   }catch(e){document.getElementById('wallet-status').className='err';document.getElementById('wallet-status').textContent='钱包组件不可用：'+(e.message||e);console.warn('express checkout unavailable',e)}
   const paymentElement=elements.create('payment',{business:{name:'Superalink'},wallets:{applePay:'auto',googlePay:'auto'},layout:{type:'accordion',defaultCollapsed:false,radios:true}});
   paymentElement.mount('#payment-element');
-  document.getElementById('submit').disabled=false;document.getElementById('status').innerHTML='<span class=ok>支付组件已加载，金额 '+(DATA.amount||'')+'</span>';
+  paymentElement.on('ready',()=>{
+    document.getElementById('submit').disabled=false;
+    document.getElementById('status').innerHTML='<span class=ok>支付组件已加载，金额 '+(DATA.amount||'')+'</span>';
+  });
 }catch(e){document.getElementById('status').className='err';document.getElementById('status').textContent='加载失败：'+e.message;}}
 async function runStripeConfirm(){
   const email=document.getElementById('email').value.trim();
